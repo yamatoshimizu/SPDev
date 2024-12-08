@@ -4,58 +4,52 @@ jobs:
   build:
     docker:
       - image: circleci/node:14  # Node.jsを含むDockerイメージ
-    working_directory: ~/salesforce-ci  # 作業ディレクトリ
-    environment:
-      # Salesforce CLIのダウンロードURL
-      DX_CLI_URL: https://developer.salesforce.com/media/salesforce-cli/sf/channels/stable/sf-linux-x64.tar.xz
+    working_directory: ~/ci_app
     steps:
       - checkout  # GitHubリポジトリからコードを取得
 
-      # Salesforce CLIをダウンロードしてインストール
+      # Salesforce CLIをnpmでインストール
       - run:
-          name: Install Salesforce CLI
+          name: Install Salesforce CLI via npm
           command: |
-            mkdir sfdx
-            wget -O sfdx.tar.xz $DX_CLI_URL
-            tar -xJf sfdx.tar.xz -C sfdx --strip-components 1
-            ./sfdx/install
-            sfdx --version  # インストール確認
+            npm install @salesforce/cli --global
+            sf --version  # CLIバージョン確認
 
-      # Salesforce CLIでDev Hubに認証
+      # Dev Hubに認証
       - run:
           name: Authenticate Dev Hub
           command: |
             echo $SFDC_SERVER_KEY > server.key
-            sfdx auth:jwt:grant --clientid $SFDC_CLIENT_ID --jwtkeyfile server.key --username $SFDC_USERNAME --setdefaultdevhubusername
+            sf org login jwt --client-id $SFDC_CLIENT_ID --jwt-key-file server.key --username $SFDC_USERNAME --set-default-dev-hub
 
       # Scratch Orgを作成
       - run:
           name: Create Scratch Org
           command: |
-            sfdx force:org:create -s -f config/project-scratch-def.json -a ci_scratch
+            sf org create scratch --definition-file config/project-scratch-def.json --alias circle_build_$CIRCLE_BUILD_NUM --duration-days 7 --set-default
 
       # ソースコードをScratch Orgにプッシュ
       - run:
           name: Push Source to Scratch Org
           command: |
-            sfdx force:source:push -u ci_scratch
+            sf project deploy start --target-org circle_build_$CIRCLE_BUILD_NUM
 
       # Apexテストを実行
       - run:
           name: Run Apex Tests
           command: |
-            mkdir -p test-results
-            sfdx force:apex:test:run -c -r junit -d test-results -u ci_scratch
+            mkdir -p ~/junit
+            sf apex run test --output-dir ~/junit --result-format junit --target-org circle_build_$CIRCLE_BUILD_NUM
 
       # テスト結果を保存
       - store_test_results:
-          path: test-results
+          path: ~/junit
 
       # Scratch Orgを削除
       - run:
           name: Delete Scratch Org
           command: |
-            sfdx force:org:delete -u ci_scratch -p
+            sf org delete scratch --target-org circle_build_$CIRCLE_BUILD_NUM --no-prompt
 
 workflows:
   version: 2
