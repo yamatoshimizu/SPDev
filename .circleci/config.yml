@@ -1,0 +1,39 @@
+version: 2.1
+
+jobs:
+  yuka-birthday:
+    docker:
+      - image: salesforce/cli:latest-full
+    steps:
+      - checkout
+      - run:
+          name: "Create a server.key"
+          command: |
+            openssl enc -nosalt -aes-256-cbc -d -in assets/server.key.enc -out assets/server.key -base64 -K $DECRYPTION_KEY -iv $DECRYPTION_IV
+      - run:
+          name: "Authenticate and create Scratch org to Salesforce DevHub"
+          command: |
+            sf force auth jwt grant -i $CONSUMER_KEY -f assets/server.key --username $USERNAME -d
+            sf org create scratch -f config/project-scratch-def.json -a circle_build_$CIRCLE_BUILD_NUM
+            sf project deploy start -o circle_build_$CIRCLE_BUILD_NUM
+
+      - run:
+          name: "Run LWC tests"
+          command: |
+            npm install
+            npm test
+      - run:
+          name: "Run Apex tests"
+          command: |
+            sf force apex test run --result-format human --code-coverage -o circle_build_$CIRCLE_BUILD_NUM
+
+      - run:
+          name: "Delete useless Scratch org"
+          command: |
+            sf org delete scratch -p -o circle_build_$CIRCLE_BUILD_NUM
+
+workflows:
+  version: 2
+  build-and-test:
+    jobs:
+      - build
