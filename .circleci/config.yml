@@ -3,7 +3,7 @@ version: 2.1
 jobs:
   build:
     docker:
-      - image: cimg/node:18  # Node.js 18以上を含むDockerイメージ
+      - image: cimg/node:23.3.0
     working_directory: ~/ci_app
     steps:
       - checkout  # GitHubリポジトリからコードを取得
