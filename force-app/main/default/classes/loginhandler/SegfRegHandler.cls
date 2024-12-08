@@ -1,3 +1,4 @@
+//セルフ登録で使用
 global class AutocreatedConfigSelfReg1707714621495 implements Auth.ConfigurableSelfRegHandler {
 
 	private final Long CURRENT_TIME = Datetime.now().getTime();

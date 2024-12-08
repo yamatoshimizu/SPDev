@@ -2,6 +2,8 @@
 //Handler class. You will need to customize it to ensure it meets your needs and
 //the data provided by the third party.
 
+//認証プロバイダによるOIDCの自動プロビジョニングで使用
+
 global class AutocreatedRegHandler1704758879043 implements Auth.RegistrationHandler{
 global boolean canCreateUser(Auth.UserData data) {
 	//TODO: Check whether we want to allow creation of a user with this data
