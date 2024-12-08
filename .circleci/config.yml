@@ -16,6 +16,9 @@ jobs:
             sf force auth jwt grant -i $HUB_CONSUMER_KEY -f assets/server.key --username $HUB_SFDX_USER -d
             sf org create scratch -f config/project-scratch-def.json -a circle_build_$CIRCLE_BUILD_NUM
             sf project deploy start -o circle_build_$CIRCLE_BUILD_NUM
+      - run:
+          name: "List all files in project"
+          command: ls -R
 
       - run:
           name: "Run LWC tests"
