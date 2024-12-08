@@ -1,69 +1,64 @@
-version: 2
-
-general:
-# Uncomment the following to specify only a specific branch
-#   branches:
-#     only:
-#       - dev # specific branch
-#       - /dev-.*/ # or regexes
+version: 2.1
 
 jobs:
   build:
-    machine: true
-    working_directory: ~/ci_app
+    docker:
+      - image: circleci/node:14  # Node.jsを含むDockerイメージ
+    working_directory: ~/salesforce-ci  # 作業ディレクトリ
     environment:
-      # from https://developer.salesforce.com/docs/atlas.en-us.sfdx_setup.meta/sfdx_setup/sfdx_setup_install_cli_standalone.htm
-      # and https://developer.salesforce.com/media/salesforce-cli/manifest.json
-      - DX_CLI_URL: https://developer.salesforce.com/media/salesforce-cli/sfdx-linux-amd64.tar.xz
+      # Salesforce CLIのダウンロードURL
+      DX_CLI_URL: https://developer.salesforce.com/media/salesforce-cli/sfdx-linux-amd64.tar.xz
     steps:
-      - checkout
+      - checkout  # GitHubリポジトリからコードを取得
+
+      # Salesforce CLIをダウンロードしてインストール
       - run:
-          name: Download CLI
+          name: Install Salesforce CLI
           command: |
             mkdir sfdx
-            wget -qO- $DX_CLI_URL | tar xJ -C sfdx --strip-components 1
-      - run:
-          name: Install CLI
-          command: |
+            wget -O sfdx.tar.xz $DX_CLI_URL
+            tar -xJf sfdx.tar.xz -C sfdx --strip-components 1
             ./sfdx/install
-            sfdx
-            mkdir tmp
+            sfdx --version  # インストール確認
+
+      # Salesforce CLIでDev Hubに認証
       - run:
-          name: Create hub key
+          name: Authenticate Dev Hub
           command: |
-            echo 'make hub key'
-            #- mkdir keys
-            #- echo $HUB_SERVER_KEY_HEX | xxd -r -ps >> keys/hub.key
-            openssl enc -nosalt -aes-256-cbc -d -in assets/server.key.enc -out assets/server.key -base64 -K $DECRYPTION_KEY -iv $DECRYPTION_IV
-            #- openssl rsa -in keys/hub.key -check -noout
-          ### Uncomment the following if performing deployments
-          #- echo 'make deploy key'
-          #- echo $DEPLOY_SERVER_KEY_HEX | xxd -r -ps >> keys/deploy.key
-          #- openssl rsa -in keys/deploy.key -check -noout
-          #- sfdx force:auth:jwt:grant --clientid $DEPLOY_CONSUMER_KEY --jwtkeyfile keys/deploy.key --username $DEPLOY_SFDC_USER -a deploy
+            echo $SFDC_SERVER_KEY > server.key
+            sfdx auth:jwt:grant --clientid $SFDC_CLIENT_ID --jwtkeyfile server.key --username $SFDC_USERNAME --setdefaultdevhubusername
+
+      # Scratch Orgを作成
       - run:
-          name: Setup Org
+          name: Create Scratch Org
           command: |
-            echo 'Running tests'
-            sfdx force:auth:jwt:grant --clientid $HUB_CONSUMER_KEY --jwtkeyfile assets/server.key --username $HUB_SFDC_USER --setdefaultdevhubusername -a hub
-            sfdx force --help
-            sfdx force:org:create -s -f ~/ci_app/config/project-scratch-def.json -a circle_build_$CIRCLE_BUILD_NUM --wait 2
-            sfdx force:source:push -u circle_build_$CIRCLE_BUILD_NUM
+            sfdx force:org:create -s -f config/project-scratch-def.json -a ci_scratch
+
+      # ソースコードをScratch Orgにプッシュ
+      - run:
+          name: Push Source to Scratch Org
+          command: |
+            sfdx force:source:push -u ci_scratch
+
+      # Apexテストを実行
       - run:
           name: Run Apex Tests
           command: |
-            mkdir -p ~/junit
-            sfdx force:apex:test:run -c -d ~/junit -r junit --wait 5
-      - store_test_results:
-          path: ~/junit
-      - run:
-          name: Delete Useless Scratch Org
-          command: |
-            sfdx force:org:delete -u circle_build_$CIRCLE_BUILD_NUM -p
+            mkdir -p test-results
+            sfdx force:apex:test:run -c -r junit -d test-results -u ci_scratch
 
-### Uncomment the following if performing deployments
-#deployment:
-#  override:
-#    - sfdx force:source:convert -r force-app -d testDeploy
-#    - . cleanupDeploy.sh
-#    - sfdx force:mdapi:deploy -d testDeploy/ -u deploy -w 2
+      # テスト結果を保存
+      - store_test_results:
+          path: test-results
+
+      # Scratch Orgを削除
+      - run:
+          name: Delete Scratch Org
+          command: |
+            sfdx force:org:delete -u ci_scratch -p
+
+workflows:
+  version: 2
+  build-and-test:
+    jobs:
+      - build
