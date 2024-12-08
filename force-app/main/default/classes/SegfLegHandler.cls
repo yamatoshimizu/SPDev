@@ -8,7 +8,7 @@ global class AutocreatedConfigSelfReg1707714621495 implements Auth.ConfigurableS
 
 	// This method is called once after verification (if any was configured)
 	// This method should create a user and insert it
-	// Password can be null
+	// Password can be null sss
 	// Return null or throw an exception to fail creation
 	global Id createUser(Id accountId, Id profileId, Map<SObjectField, String> registrationAttributes, String password) {
 		User u = new User();
