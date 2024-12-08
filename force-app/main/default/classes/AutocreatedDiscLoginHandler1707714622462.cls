@@ -1,7 +1,7 @@
 // This auto-generated class contains the default logic for login discovery by SMS or email. 
 // You can customize the code to ensure it meets your needs. The requestAttributes parameter 
 // provides additional information you can use in the discovery logic. Attributes include CommunityUrl, 
-// IpAddress, UserAgent, and location information (such as Country and City). 
+// IpAddress, UserAgent, and location information (such as Country and City). aa
 global class AutocreatedDiscLoginHandler1707714622462 implements Auth.LoginDiscoveryHandler {
 
 global PageReference login(String identifier, String startUrl, Map<String, String> requestAttributes) {
