@@ -1,55 +1,36 @@
 version: 2.1
 
 jobs:
-  build:
+  yuka-birthday:
     docker:
-      - image: cimg/node:23.3.0
-    working_directory: ~/ci_app
+      - image: salesforce/cli:latest-full
     steps:
-      - checkout  # GitHubリポジトリからコードを取得
-
-      # Salesforce CLIをnpmでインストール
+      - checkout
       - run:
-          name: Install Salesforce CLI via npm
+          name: "Create a server.key"
           command: |
-            npm install @salesforce/cli --global
-            sf --version  # CLIバージョン確認
-
-      # Dev Hubに認証
+            openssl enc -nosalt -aes-256-cbc -d -in assets/server.key.enc -out assets/server.key -base64 -K $DECRYPTION_KEY -iv $DECRYPTION_IV
       - run:
-          name: Authenticate Dev Hub
+          name: "Authenticate and create Scratch org to Salesforce DevHub"
           command: |
-            echo $SFDC_SERVER_KEY > server.key
-            sf org login jwt --client-id $SFDC_CLIENT_ID --jwt-key-file server.key --username $SFDC_USERNAME --set-default-dev-hub
+            sf force auth jwt grant -i $CONSUMER_KEY -f assets/server.key --username $USERNAME -d
+            sf org create scratch -f config/project-scratch-def.json -a circle_build_$CIRCLE_BUILD_NUM
+            sf project deploy start -o circle_build_$CIRCLE_BUILD_NUM
 
-      # Scratch Orgを作成
       - run:
-          name: Create Scratch Org
+          name: "Run LWC tests"
           command: |
-            sf org create scratch --definition-file config/project-scratch-def.json --alias circle_build_$CIRCLE_BUILD_NUM --duration-days 7 --set-default
-
-      # ソースコードをScratch Orgにプッシュ
+            npm install
+            npm test
       - run:
-          name: Push Source to Scratch Org
+          name: "Run Apex tests"
           command: |
-            sf project deploy start --target-org circle_build_$CIRCLE_BUILD_NUM
+            sf force apex test run --result-format human --code-coverage -o circle_build_$CIRCLE_BUILD_NUM
 
-      # Apexテストを実行
       - run:
-          name: Run Apex Tests
+          name: "Delete useless Scratch org"
           command: |
-            mkdir -p ~/junit
-            sf apex run test --output-dir ~/junit --result-format junit --target-org circle_build_$CIRCLE_BUILD_NUM
-
-      # テスト結果を保存
-      - store_test_results:
-          path: ~/junit
-
-      # Scratch Orgを削除
-      - run:
-          name: Delete Scratch Org
-          command: |
-            sf org delete scratch --target-org circle_build_$CIRCLE_BUILD_NUM --no-prompt
+            sf org delete scratch -p -o circle_build_$CIRCLE_BUILD_NUM
 
 workflows:
   version: 2
