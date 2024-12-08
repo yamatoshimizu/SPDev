@@ -7,7 +7,7 @@ jobs:
     working_directory: ~/salesforce-ci  # 作業ディレクトリ
     environment:
       # Salesforce CLIのダウンロードURL
-      DX_CLI_URL: https://developer.salesforce.com/media/salesforce-cli/sfdx-linux-amd64.tar.xz
+      DX_CLI_URL: https://developer.salesforce.com/media/salesforce-cli/sf/channels/stable/sf-linux-x64.tar.xz
     steps:
       - checkout  # GitHubリポジトリからコードを取得
 
