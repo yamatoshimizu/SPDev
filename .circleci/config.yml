@@ -11,13 +11,14 @@ jobs:
           command: |
             sf force auth jwt grant -i $HUB_CONSUMER_KEY -f assets/server.key --username $HUB_SFDX_USER -d
       - run:
-          name: "Verify Default Org"
+          name: "Set Default Org"
           command: |
+            sf config set target-org=$HUB_SFDX_USER
             sf config get target-org
       - run:
           name: "Deploy to Salesforce Org"
           command: |
-            sf project deploy start
+            sf project deploy start --target-org $HUB_SFDX_USER
       - run:
           name: "Run LWC tests"
           command: |
