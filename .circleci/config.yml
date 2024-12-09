@@ -16,7 +16,7 @@ jobs:
       - run:
           name: "Deploy to Salesforce Org"
           command: |
-            sf project deploy start -o SP
+            sf project deploy start -u service.provider@yamato.com
       - run:
           name: "Run LWC tests"
           command: |
