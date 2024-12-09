@@ -1,5 +1,5 @@
 import { createElement } from 'lwc';
-import GeoMap from 'c/geoMap';
+import NearAccountRootMap from 'c/nearAccountRootMap';
 import findNearbyAccounts from '@salesforce/apex/GeoLocationController.findNearbyAccounts';
 import { getLocationService } from 'lightning/mobileCapabilities';
 
@@ -24,7 +24,7 @@ jest.mock('lightning/mobileCapabilities', () => {
     };
 }, { virtual: true });
 
-describe('c-geo-map', () => {
+describe('c-near-account-root-map', () => {
     afterEach(() => {
         while (document.body.firstChild) {
             document.body.removeChild(document.body.firstChild);
@@ -33,8 +33,8 @@ describe('c-geo-map', () => {
     });
 
     it('renders map container', () => {
-        const element = createElement('c-geo-map', {
-            is: GeoMap
+        const element = createElement('c-near-account-root-map', {
+            is: NearAccountRootMap
         });
         document.body.appendChild(element);
 
@@ -48,8 +48,8 @@ describe('c-geo-map', () => {
             { Id: '0011x000002fWvLAAU', Name: 'Nearby Account', Latitude__c: 37.7749, Longitude__c: -122.4194 }
         ]);
 
-        const element = createElement('c-geo-map', {
-            is: GeoMap
+        const element = createElement('c-near-account-root-map', {
+            is: NearAccountRootMap
         });
         document.body.appendChild(element);
 
@@ -70,8 +70,8 @@ describe('c-geo-map', () => {
             isAvailable: jest.fn(() => false)
         });
 
-        const element = createElement('c-geo-map', {
-            is: GeoMap
+        const element = createElement('c-near-account-root-map', {
+            is: NearAccountRootMap
         });
         document.body.appendChild(element);
 
@@ -90,8 +90,8 @@ describe('c-geo-map', () => {
         // Apexエラーをシミュレート
         findNearbyAccounts.mockRejectedValue(new Error('Apex error occurred'));
 
-        const element = createElement('c-geo-map', {
-            is: GeoMap
+        const element = createElement('c-near-account-root-map', {
+            is: NearAccountRootMap
         });
         document.body.appendChild(element);
 
@@ -108,8 +108,8 @@ describe('c-geo-map', () => {
     });
 
     it('does not initialize Google Maps if already loaded', () => {
-        const element = createElement('c-geo-map', {
-            is: GeoMap
+        const element = createElement('c-near-account-root-map', {
+            is: NearAccountRootMap
         });
         document.body.appendChild(element);
 
