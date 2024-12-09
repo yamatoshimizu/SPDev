@@ -7,16 +7,17 @@ jobs:
     steps:
       - checkout
       - run:
-          name: "List all files in project"
-          command: ls -R
-      - run:
           name: "Authenticate to Salesforce Org"
           command: |
             sf force auth jwt grant -i $HUB_CONSUMER_KEY -f assets/server.key --username $HUB_SFDX_USER -d
       - run:
+          name: "Verify Default Org"
+          command: |
+            sf config get target-org
+      - run:
           name: "Deploy to Salesforce Org"
           command: |
-            sf project deploy start -u service.provider@yamato.com
+            sf project deploy start
       - run:
           name: "Run LWC tests"
           command: |
