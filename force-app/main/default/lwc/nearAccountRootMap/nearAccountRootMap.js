@@ -12,19 +12,35 @@ export default class GeoMap extends LightningElement {
 
     // Location Service initialization
     locationService = getLocationService();
-
     renderedCallback() {
-        if (!this.map) {
-            const mapElement = this.template.querySelector('#map');
-            this.map = new google.maps.Map(mapElement, {
-                center: { lat: 0, lng: 0 },
-                zoom: 12
-            });
-            this.directionsService = new google.maps.DirectionsService();
-            this.directionsRenderer = new google.maps.DirectionsRenderer();
-            this.directionsRenderer.setMap(this.map);
+        if (!this.map && !this.isGoogleMapsLoaded) {
+            this.isGoogleMapsLoaded = true; // APIが多重読み込みされるのを防ぐ
+            const script = document.createElement('script');
+            script.src = 'https://maps.googleapis.com/maps/api/js?key=AIzaSyDVvBKXs4OMaxCgjDGjZXmKzZtCCS1IZYc'; // APIキーを指定
+            script.async = true;
+            script.defer = true;
+            script.onload = () => {
+                // Google Maps APIがロードされた後に初期化
+                this.initializeMap();
+            };
+            script.onerror = () => {
+                console.error('Google Maps API failed to load.');
+            };
+            document.head.appendChild(script); // スクリプトをヘッダーに追加
         }
     }
+    
+    initializeMap() {
+        const mapElement = this.template.querySelector('#map');
+        this.map = new google.maps.Map(mapElement, {
+            center: { lat: 0, lng: 0 },
+            zoom: 12
+        });
+        this.directionsService = new google.maps.DirectionsService();
+        this.directionsRenderer = new google.maps.DirectionsRenderer();
+        this.directionsRenderer.setMap(this.map);
+    }
+    
 
     async getCurrentLocation() {
         if (this.locationService.isAvailable()) {
