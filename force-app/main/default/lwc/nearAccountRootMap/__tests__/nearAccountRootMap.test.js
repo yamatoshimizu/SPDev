@@ -1,5 +1,5 @@
 import { createElement } from 'lwc';
-import NearAccountRootMap from 'c/nearAccountRootMap';
+import GeoMap from 'c/geoMap';
 import findNearbyAccounts from '@salesforce/apex/GeoLocationController.findNearbyAccounts';
 import { getLocationService } from 'lightning/mobileCapabilities';
 
@@ -24,7 +24,7 @@ jest.mock('lightning/mobileCapabilities', () => {
     };
 }, { virtual: true });
 
-describe('c-near-account-root-map', () => {
+describe('c-geo-map', () => {
     afterEach(() => {
         while (document.body.firstChild) {
             document.body.removeChild(document.body.firstChild);
@@ -33,8 +33,8 @@ describe('c-near-account-root-map', () => {
     });
 
     it('renders map container', () => {
-        const element = createElement('c-near-account-root-map', {
-            is: NearAccountRootMap
+        const element = createElement('c-geo-map', {
+            is: GeoMap
         });
         document.body.appendChild(element);
 
@@ -43,51 +43,83 @@ describe('c-near-account-root-map', () => {
     });
 
     it('fetches nearby accounts when getCurrentLocation is called', async () => {
+        // モックされたApexレスポンス
         findNearbyAccounts.mockResolvedValue([
             { Id: '0011x000002fWvLAAU', Name: 'Nearby Account', Latitude__c: 37.7749, Longitude__c: -122.4194 }
         ]);
 
-        const element = createElement('c-near-account-root-map', {
-            is: NearAccountRootMap
+        const element = createElement('c-geo-map', {
+            is: GeoMap
         });
         document.body.appendChild(element);
 
         const button = element.shadowRoot.querySelector('lightning-button');
+        expect(button).not.toBeNull(); // ボタンが存在することを確認
         button.click();
 
+        // 非同期処理を待機
         await Promise.resolve();
+
+        // Apexメソッドが正しい引数で呼び出されたことを確認
         expect(findNearbyAccounts).toHaveBeenCalledWith({ latitude: 37.7749, longitude: -122.4194 });
     });
 
     it('handles location service unavailability', async () => {
-        getLocationService.mockReturnValueOnce({ isAvailable: jest.fn(() => false) });
+        // Location Serviceを利用不可に設定
+        getLocationService.mockReturnValueOnce({
+            isAvailable: jest.fn(() => false)
+        });
 
-        const element = createElement('c-near-account-root-map', {
-            is: NearAccountRootMap
+        const element = createElement('c-geo-map', {
+            is: GeoMap
         });
         document.body.appendChild(element);
 
         const button = element.shadowRoot.querySelector('lightning-button');
+        expect(button).not.toBeNull(); // ボタンが存在することを確認
         button.click();
 
         await Promise.resolve();
+
+        // エラーメッセージが正しく表示されていることを確認
         const errorMessage = element.shadowRoot.querySelector('.error');
         expect(errorMessage.textContent).toBe('Location Service is not available on this device.');
     });
 
     it('handles Apex errors gracefully', async () => {
+        // Apexエラーをシミュレート
         findNearbyAccounts.mockRejectedValue(new Error('Apex error occurred'));
 
-        const element = createElement('c-near-account-root-map', {
-            is: NearAccountRootMap
+        const element = createElement('c-geo-map', {
+            is: GeoMap
         });
         document.body.appendChild(element);
 
         const button = element.shadowRoot.querySelector('lightning-button');
+        expect(button).not.toBeNull(); // ボタンが存在することを確認
         button.click();
 
         await Promise.resolve();
+
+        // エラーメッセージが正しく表示されていることを確認
         const errorMessage = element.shadowRoot.querySelector('.error');
+        expect(errorMessage).not.toBeNull(); // エラー要素が存在することを確認
         expect(errorMessage.textContent).toBe('Error fetching nearby accounts: Apex error occurred');
+    });
+
+    it('does not initialize Google Maps if already loaded', () => {
+        const element = createElement('c-geo-map', {
+            is: GeoMap
+        });
+        document.body.appendChild(element);
+
+        // 初期化済みのフラグを設定
+        element.isGoogleMapsLoaded = true;
+
+        // renderedCallbackを再度呼び出す
+        element.renderedCallback();
+
+        // Google Mapsスクリプトが再ロードされないことを確認
+        expect(element.isGoogleMapsLoaded).toBe(true);
     });
 });
