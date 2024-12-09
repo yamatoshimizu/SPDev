@@ -16,7 +16,7 @@ jobs:
       - run:
           name: "Deploy to Salesforce Org"
           command: |
-            sf project deploy start
+            sf project deploy start -o SP
       - run:
           name: "Run LWC tests"
           command: |
