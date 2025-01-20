@@ -1,7 +1,7 @@
 version: 2.1
 
 jobs:
-  yuka-birthday:
+  circleCi-test:
     docker:
       - image: salesforce/cli:latest-full
     steps:
@@ -32,4 +32,4 @@ workflows:
   version: 2
   build-and-test:
     jobs:
-      - yuka-birthday
+      - circleCi-test
