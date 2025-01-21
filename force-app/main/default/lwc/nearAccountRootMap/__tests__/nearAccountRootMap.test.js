@@ -3,6 +3,7 @@ import NearAccountRootMap from 'c/nearAccountRootMap';
 import findNearbyAccounts from '@salesforce/apex/GeoLocationController.findNearbyAccounts';
 import { getLocationService } from 'lightning/mobileCapabilities';
 
+//変更しました
 // モック化
 jest.mock('@salesforce/apex/GeoLocationController.findNearbyAccounts', () => {
     return { default: jest.fn() };
