@@ -1,35 +1,119 @@
+# CircleCI の設定ファイル
+# YAML 形式で記述する。version は CircleCI のコンフィグ仕様のバージョンを表す。
 version: 2.1
 
+# 実際に実行される処理（ジョブ）を定義するセクション
 jobs:
+  # ジョブ名。workflows からこの名前で呼び出される。
   circleCi-test:
+    # このジョブをどんな環境（コンテナ）で動かすかの指定
     docker:
+      # Salesforce CLI や Node.js などが入っている公式イメージを使用
+      # このコンテナの中で以降の steps が順番に実行される。
       - image: salesforce/cli:latest-full
+
+    # ジョブの中で実行するステップ一覧（上から順番に実行される）
     steps:
+      # 1. ソースコードの取得
+      # GitHub 上の「SP Dev」リポジトリを、このコンテナ内にチェックアウトする。
+      # これにより、sfdx-project.json や force-app 配下、package.json など
+      # プロジェクトのファイル一式がコンテナ内に展開される。
       - checkout
+
+      # 2. JWT ベアラーフローを使って Salesforce Org にログインするステップ
       - run:
+          # CircleCI の UI 上に表示されるステップ名（ログを読むときの見出し）
           name: "Authenticate to Salesforce Org"
           command: |
+            # sf force auth jwt grant:
+            #   - JWT ベアラーフローで Salesforce に認証するコマンド。
+            #   - 実際には「ヘッダー＋ペイロード」を JSON で作り、
+            #     assets/server.key（秘密鍵）で署名した JWT を作成し、
+            #     それを Salesforce のトークンエンドポイントに投げて access_token を取得している。
+            #
+            # オプションの意味：
+            #   -i $HUB_CONSUMER_KEY
+            #     → Connected App の Consumer Key（CircleCI の環境変数で設定しておく）。
+            #   -f assets/server.key
+            #     → JWT 署名に使う秘密鍵ファイルへのパス。
+            #        現状はリポジトリ内の assets/server.key を参照している想定。
+            #        ※本来は Git に秘密鍵をコミットせず、CircleCI の環境変数から
+            #          一時的にファイルを生成する方式がより安全。
+            #   --username $HUB_SFDX_USER
+            #     → 認証したい Salesforce ユーザのユーザ名。
+            #       （Dev Hub やデプロイ先の Org のユーザ名）を環境変数として渡す。
+            #   -d
+            #     → この Org を「デフォルト org（default）」として保存するフラグ。
             sf force auth jwt grant -i $HUB_CONSUMER_KEY -f assets/server.key --username $HUB_SFDX_USER -d
+
+      # 3. sf CLI のターゲット org 設定を明示的に確認するステップ
       - run:
           name: "Set Default Org"
           command: |
+            # sf config set:
+            #   Salesforce CLI の設定キーに値を保存する。
+            #   ここでは target-org を HUB_SFDX_USER に明示的にセットしている。
             sf config set target-org=$HUB_SFDX_USER
+
+            # sf config get:
+            #   設定が正しく入っているか確認のため、target-org を表示。
+            #   ログ上で「どの Org をターゲットにしているか」が分かるようにしている。
             sf config get target-org
+
+      # 4. プロジェクトのメタデータを Salesforce Org にデプロイするステップ
       - run:
           name: "Deploy to Salesforce Org"
           command: |
+            # sf project deploy start:
+            #   sfdx-project.json に基づいて、プロジェクト配下のメタデータを
+            #   指定した Org（--target-org）にデプロイする。
+            #   デフォルトでは force-app 以下の変更をまとめてデプロイするイメージ。
+            #
+            #   --target-org $HUB_SFDX_USER:
+            #     上でログインした Org を明示的に指定してデプロイを実行する。
             sf project deploy start --target-org $HUB_SFDX_USER
+
+      # 5. LWC (Lightning Web Components) の Jest テストを実行するステップ
       - run:
           name: "Run LWC tests"
           command: |
+            # npm install:
+            #   package.json に定義されている依存パッケージ（@salesforce/sfdx-lwc-jest 等）をインストール。
+            #   これにより LWC のユニットテスト環境が整う。
             npm install
+
+            # npm test:
+            #   package.json の "scripts.test" に定義されたコマンドを実行。
+            #   一般的には LWC Jest テストが実行され、JS 部分の品質チェックが行われる。
             npm test
+
+      # 6. Apex テストを実行するステップ
       - run:
           name: "Run Apex tests"
           command: |
+            # sf force apex test run:
+            #   対象 Org 上で Apex テストを実行する。
+            #
+            #   --result-format human:
+            #     人間が読みやすいテキスト形式で結果を出力。
+            #     CircleCI のログでテスト結果を確認しやすくするための指定。
+            #
+            #   --code-coverage:
+            #     Apex のコードカバレッジ情報も合わせて取得する。
+            #     クラスごとのカバレッジなどを確認するのに利用できる。
             sf force apex test run --result-format human --code-coverage
+
+
+# 複数のジョブをどのタイミング・順番で実行するかを定義するセクション
 workflows:
+  # workflows セクション自体のバージョン
   version: 2
+
+  # ワークフロー名。CircleCI の UI 上でパイプライン名として表示される。
   build-and-test:
+    # このワークフローの中で実行するジョブ一覧
     jobs:
+      # 上で定義した circleCi-test ジョブを 1 つ実行する。
+      # GitHub の push / PR トリガーが走ると、この workflow が起動し、
+      # その中で circleCi-test が実行されるイメージ。
       - circleCi-test
