@@ -73,6 +73,23 @@ jobs:
             #     上でログインした Org を明示的に指定してデプロイを実行する。
             sf project deploy start --target-org $HUB_SFDX_USER
 
+      #4.1. 静的解析のステップ。Salesforce Code Analyzer v5 をインストールする
+      - run:
+          name: "Install Salesforce Code Analyzer"
+          command: |
+            sf plugins install @salesforce/plugin-code-analyzer
+
+      #4.2. 静的解析のステップ2。Salesforce Code Analyzer v5 を実行し、レポート出力する
+      - run:
+          name: "Run Salesforce Code Analyzer"
+          command: |
+            mkdir -p reports
+            sf code-analyzer run \
+              --target "force-app" \
+              --output-format junit \
+              --output-file reports/code-analyzer-results.xml \
+              --severity-threshold 2
+
       # 5. LWC (Lightning Web Components) の Jest テストを実行するステップ
       - run:
           name: "Run LWC tests"
