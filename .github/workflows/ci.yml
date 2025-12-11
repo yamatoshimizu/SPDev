@@ -1,0 +1,60 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+
+      - name: Install Salesforce CLI
+        run: npm install -g @salesforce/cli
+
+      - name: Authenticate to Salesforce Org
+        # Using JWT auth as per CircleCI config. Requires HUB_CONSUMER_KEY and HUB_SFDX_USER secrets.
+        # Assumes assets/server.key exists in the repository.
+        run: |
+          sf org login jwt --client-id ${{ secrets.HUB_CONSUMER_KEY }} --jwt-key-file assets/server.key --username ${{ secrets.HUB_SFDX_USER }} --set-default
+        env:
+          HUB_CONSUMER_KEY: ${{ secrets.HUB_CONSUMER_KEY }}
+          HUB_SFDX_USER: ${{ secrets.HUB_SFDX_USER }}
+
+      - name: Set Default Org (Verification)
+        run: sf config get target-org
+
+      - name: Deploy to Salesforce Org
+        run: sf project deploy start --target-org ${{ secrets.HUB_SFDX_USER }}
+
+      - name: Install Salesforce Code Analyzer
+        run: sf plugins install @salesforce/plugin-code-analyzer
+
+      - name: Run Salesforce Code Analyzer
+        run: |
+          mkdir -p reports
+          sf code-analyzer run --target "force-app" --output-format junit --output-file reports/code-analyzer-results.xml --severity-threshold 2
+
+      - name: Install NPM Dependencies (LWC)
+        run: npm install
+
+      - name: Run LWC Tests
+        run: npm test
+
+      - name: Run Apex Tests
+        run: sf apex test run --result-format human --code-coverage
