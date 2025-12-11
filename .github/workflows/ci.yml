@@ -1,5 +1,7 @@
+# ワークフロー名: ビルドとテスト
 name: Build and Test
 
+# トリガー設定: mainブランチへのpushまたはプルリクエストで起動
 on:
   push:
     branches: [ main ]
@@ -8,53 +10,66 @@ on:
 
 jobs:
   build-and-test:
+    # 実行環境: 最新のUbuntuランナーを使用
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Source Code
+      # 1. ソースコードのチェックアウト
+      - name: Checkout Source Code (ソースコードの取得)
         uses: actions/checkout@v4
 
+      # 2. Node.js のセットアップ (バージョン20)
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
+      # 3. Java のセットアップ (Salesforce Code Analyzerで必要)
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '11'
 
+      # 4. Salesforce CLI のインストール
       - name: Install Salesforce CLI
         run: npm install -g @salesforce/cli
 
-      - name: Authenticate to Salesforce Org
-        # Using JWT auth as per CircleCI config. Requires HUB_CONSUMER_KEY and HUB_SFDX_USER secrets.
-        # Assumes assets/server.key exists in the repository.
+      # 5. Salesforce Org への認証
+      # JWTフローを使用。GitHub Secrets に HUB_CONSUMER_KEY と HUB_SFDX_USER の設定が必要。
+      # リポジトリ内の assets/server.key ファイルを使用します。
+      - name: Authenticate to Salesforce Org (Salesforce認証)
         run: |
           sf org login jwt --client-id ${{ secrets.HUB_CONSUMER_KEY }} --jwt-key-file assets/server.key --username ${{ secrets.HUB_SFDX_USER }} --set-default
         env:
           HUB_CONSUMER_KEY: ${{ secrets.HUB_CONSUMER_KEY }}
           HUB_SFDX_USER: ${{ secrets.HUB_SFDX_USER }}
 
+      # 6. デフォルトOrgの設定確認 (デバッグ用)
       - name: Set Default Org (Verification)
         run: sf config get target-org
 
-      - name: Deploy to Salesforce Org
+      # 7. Salesforce Org へのデプロイ
+      - name: Deploy to Salesforce Org (デプロイ実行)
         run: sf project deploy start --target-org ${{ secrets.HUB_SFDX_USER }}
 
+      # 8. Salesforce Code Analyzer のインストール (静的解析ツール)
       - name: Install Salesforce Code Analyzer
         run: sf plugins install @salesforce/plugin-code-analyzer
 
-      - name: Run Salesforce Code Analyzer
+      # 9. コード解析の実行 (結果は reports/code-analyzer-results.xml に出力)
+      - name: Run Salesforce Code Analyzer (コード解析実行)
         run: |
           mkdir -p reports
           sf code-analyzer run --target "force-app" --output-format junit --output-file reports/code-analyzer-results.xml --severity-threshold 2
 
+      # 10. npmパッケージのインストール (LWCテスト用)
       - name: Install NPM Dependencies (LWC)
         run: npm install
 
-      - name: Run LWC Tests
+      # 11. LWC (Lightning Web Components) テストの実行
+      - name: Run LWC Tests (LWCテスト実行)
         run: npm test
 
-      - name: Run Apex Tests
+      # 12. Apex テストの実行 (カバレッジ計測含む)
+      - name: Run Apex Tests (Apexテスト実行)
         run: sf apex test run --result-format human --code-coverage
